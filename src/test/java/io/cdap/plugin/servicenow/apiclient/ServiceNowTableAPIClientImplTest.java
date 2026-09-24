@@ -85,41 +85,41 @@ public class ServiceNowTableAPIClientImplTest {
     ServiceNowConnectorConfig mockConfig = Mockito.mock(ServiceNowConnectorConfig.class);
     ServiceNowTableAPIClientImpl impl = new ServiceNowTableAPIClientImpl(mockConfig, true);
     ServiceNowTableAPIClientImpl implSpy = Mockito.spy(impl);
-
     org.apache.oltu.oauth2.common.exception.OAuthSystemException oauthSysEx =
       new org.apache.oltu.oauth2.common.exception.OAuthSystemException("Transient OAuth system error");
-
     Mockito.doThrow(oauthSysEx)
       .doReturn("valid-access-token")
       .when(implSpy).generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
     String token = implSpy.getAccessTokenRetryableMode();
+
     Mockito.verify(implSpy, Mockito.times(2))
       .generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
     Assert.assertEquals("valid-access-token", token);
   }
 
   @Test
-  public void testGetAccessTokenRetryableMode_NonRetryableThrowsServiceNowAPIException() throws Exception {
+  public void testGetAccessTokenRetryableMode_nonRetryable() throws Exception {
     ServiceNowConnectorConfig mockConfig = Mockito.mock(ServiceNowConnectorConfig.class);
     ServiceNowTableAPIClientImpl impl = new ServiceNowTableAPIClientImpl(mockConfig, true);
     ServiceNowTableAPIClientImpl implSpy = Mockito.spy(impl);
-
     org.apache.oltu.oauth2.common.exception.OAuthProblemException oauthProblemEx =
       org.apache.oltu.oauth2.common.exception.OAuthProblemException.error("invalid_grant", "Invalid credentials");
-
     Mockito.doThrow(oauthProblemEx)
       .when(implSpy).generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    ServiceNowAPIException actualException = null;
 
     try {
       implSpy.getAccessTokenRetryableMode();
-      Assert.fail("Expected ServiceNowAPIException to be thrown");
     } catch (ServiceNowAPIException e) {
-      Assert.assertEquals("An error occurred while authenticating.", e.getMessage());
-      Assert.assertSame(oauthProblemEx, e.getCause());
-      Mockito.verify(implSpy, Mockito.times(1))
-        .generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+      actualException = e;
     }
+
+    Assert.assertNotNull(actualException);
+    Assert.assertEquals("An error occurred while authenticating.", actualException.getMessage());
+    Assert.assertSame(oauthProblemEx, actualException.getCause());
+    Mockito.verify(implSpy, Mockito.times(1))
+      .generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
   }
 
   @Test
