@@ -149,4 +149,24 @@ public class RestAPIClientTest {
     Throwable ex = actualResponse.getException().getCause();
     Assert.assertTrue("Expected SocketException or similar, got: " + ex, ex instanceof SocketException);
   }
+
+  @Test
+  public void testExecuteGetWithRetries_ExecutionExceptionUnwrapsCause() throws IOException {
+    ServiceNowTableAPIRequestBuilder builder = new ServiceNowTableAPIRequestBuilder("url");
+    RestAPIRequest request = builder.build();
+
+    ServiceNowConnectorConfig config = Mockito.mock(ServiceNowConnectorConfig.class);
+    ServiceNowTableAPIClientImpl clientSpy = Mockito.spy(new ServiceNowTableAPIClientImpl(config, true));
+    IOException rootCause = new IOException("Unexpected transport failure");
+    Mockito.doThrow(rootCause).when(clientSpy).executeGet(request);
+
+    try {
+      clientSpy.executeGetWithRetries(request);
+      Assert.fail("Expected ServiceNowAPIException to be thrown");
+    } catch (io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException e) {
+      Assert.assertSame("Expected unwrapped IOException cause instead of ExecutionException",
+                        rootCause, e.getCause());
+      Assert.assertEquals("Unexpected transport failure", e.getUnderlyingMessage());
+    }
+  }
 }

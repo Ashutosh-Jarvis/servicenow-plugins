@@ -75,9 +75,51 @@ public class ServiceNowTableAPIClientImplTest {
             Mockito.anyInt(),
             Mockito.anyInt());
     exceptionRule.expect(ServiceNowAPIException.class);
-    exceptionRule.expectMessage("Data Recovery failed for batch 0 to 0.");
+    exceptionRule.expectMessage("Non-retryable Error");
     implSpy.fetchTableRecordsRetryableMode(
         "test", SourceValueType.SHOW_DISPLAY_VALUE, "", 0, 0);
+  }
+
+  @Test
+  public void testGetAccessTokenRetryableMode_RetriesAndSucceeds() throws Exception {
+    ServiceNowConnectorConfig mockConfig = Mockito.mock(ServiceNowConnectorConfig.class);
+    ServiceNowTableAPIClientImpl impl = new ServiceNowTableAPIClientImpl(mockConfig, true);
+    ServiceNowTableAPIClientImpl implSpy = Mockito.spy(impl);
+
+    org.apache.oltu.oauth2.common.exception.OAuthSystemException oauthSysEx =
+      new org.apache.oltu.oauth2.common.exception.OAuthSystemException("Transient OAuth system error");
+
+    Mockito.doThrow(oauthSysEx)
+      .doReturn("valid-access-token")
+      .when(implSpy).generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
+    String token = implSpy.getAccessTokenRetryableMode();
+    Mockito.verify(implSpy, Mockito.times(2))
+      .generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    Assert.assertEquals("valid-access-token", token);
+  }
+
+  @Test
+  public void testGetAccessTokenRetryableMode_NonRetryableThrowsServiceNowAPIException() throws Exception {
+    ServiceNowConnectorConfig mockConfig = Mockito.mock(ServiceNowConnectorConfig.class);
+    ServiceNowTableAPIClientImpl impl = new ServiceNowTableAPIClientImpl(mockConfig, true);
+    ServiceNowTableAPIClientImpl implSpy = Mockito.spy(impl);
+
+    org.apache.oltu.oauth2.common.exception.OAuthProblemException oauthProblemEx =
+      org.apache.oltu.oauth2.common.exception.OAuthProblemException.error("invalid_grant", "Invalid credentials");
+
+    Mockito.doThrow(oauthProblemEx)
+      .when(implSpy).generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+
+    try {
+      implSpy.getAccessTokenRetryableMode();
+      Assert.fail("Expected ServiceNowAPIException to be thrown");
+    } catch (ServiceNowAPIException e) {
+      Assert.assertEquals("An error occurred while authenticating.", e.getMessage());
+      Assert.assertSame(oauthProblemEx, e.getCause());
+      Mockito.verify(implSpy, Mockito.times(1))
+        .generateAccessToken(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    }
   }
 
   @Test

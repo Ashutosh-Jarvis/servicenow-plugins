@@ -159,6 +159,9 @@ public abstract class RestAPIClient {
       Attempt<?> apiResponseAttempt = e.getLastFailedAttempt();
       if (apiResponseAttempt.hasException()) {
         // last attempt has execution failure
+        if (apiResponseAttempt.getExceptionCause() instanceof ServiceNowAPIException) {
+          throw (ServiceNowAPIException) apiResponseAttempt.getExceptionCause();
+        }
         throw new ServiceNowAPIException(apiResponseAttempt.getExceptionCause(), null);
       } else {
         // last execution attempt was successful but has an error response
@@ -168,7 +171,10 @@ public abstract class RestAPIClient {
       }
     } catch (ExecutionException e) {
       // Execution failed with error
-      throw new ServiceNowAPIException(e, null);
+      if (e.getCause() instanceof ServiceNowAPIException) {
+        throw (ServiceNowAPIException) e.getCause();
+      }
+      throw new ServiceNowAPIException(e.getCause(), null);
     }
   }
 
@@ -216,8 +222,8 @@ public abstract class RestAPIClient {
    * @throws OAuthSystemException
    * @throws OAuthProblemException
    */
-  protected String generateAccessToken(String restApiEndpoint, String clientId, String clientSecret, String user,
-                                       String password) throws OAuthSystemException, OAuthProblemException {
+  public String generateAccessToken(String restApiEndpoint, String clientId, String clientSecret, String user,
+                                    String password) throws OAuthSystemException, OAuthProblemException {
     String token = "NO-VALUE";
 
     // When a proxy is configured, route the OAuth token request through the same proxy-aware HTTP client as the rest

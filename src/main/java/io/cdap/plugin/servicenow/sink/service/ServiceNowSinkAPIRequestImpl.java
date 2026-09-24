@@ -202,21 +202,28 @@ public class ServiceNowSinkAPIRequestImpl {
    *
    * @param restRequestsMap The map of rest Requests
    */
-  public void createPostRequestRetryableMode(Map<String, RestRequest> restRequestsMap) throws ExecutionException,
-    RetryException {
+  public void createPostRequestRetryableMode(Map<String, RestRequest> restRequestsMap) throws ServiceNowAPIException {
     String accessToken = restApi.getAccessTokenRetryableMode();
     Callable<Boolean> fetchRecords = () -> {
       createPostRequest(restRequestsMap, accessToken);
       return true;
     };
 
-    Retryer retryer = RetryerBuilder.newBuilder()
+    Retryer<Boolean> retryer = RetryerBuilder.<Boolean>newBuilder()
+      .retryIfException(t -> t instanceof ServiceNowAPIException && ((ServiceNowAPIException) t).isErrorRetryable())
       .retryIfExceptionOfType(RetryableException.class)
       .withWaitStrategy(WaitStrategies.fixedWait(ServiceNowConstants.BASE_DELAY, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(ServiceNowConstants.MAX_NUMBER_OF_RETRY_ATTEMPTS))
       .build();
 
-    retryer.call(fetchRecords);
+    try {
+      retryer.call(fetchRecords);
+    } catch (RetryException | ExecutionException e) {
+      if (e.getCause() instanceof ServiceNowAPIException) {
+        throw (ServiceNowAPIException) e.getCause();
+      }
+      throw new ServiceNowAPIException("Error while connecting to ServiceNow", e.getCause(), null, false);
+    }
   }
 
   /**
