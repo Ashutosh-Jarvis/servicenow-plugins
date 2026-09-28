@@ -122,7 +122,9 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
     try {
       return retryer.call(fetchToken);
     } catch (RetryException | ExecutionException e) {
-      throw new ServiceNowAPIException("An error occurred while authenticating.", e.getCause(), null, false);
+      throw new ServiceNowAPIException(
+        String.format("An error occurred while authenticating. %s", e.getCause().getMessage()),
+        e.getCause(), null, false);
     }
   }
 
@@ -236,7 +238,8 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
         throw (ServiceNowAPIException) e.getCause();
       }
       throw new ServiceNowAPIException(
-          String.format("Data Recovery failed for batch %s to %s.", offset, (offset + limit)),
+          String.format("Data Recovery failed for batch %s to %s. %s", offset, (offset + limit),
+                        e.getCause().getMessage()),
           e.getCause(), null, false);
     }
 

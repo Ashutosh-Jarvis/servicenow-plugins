@@ -20,12 +20,14 @@ import io.cdap.plugin.servicenow.ServiceNowBaseConfig;
 import io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException;
 import io.cdap.plugin.servicenow.apiclient.ServiceNowTableAPIClientImpl;
 import io.cdap.plugin.servicenow.connector.ServiceNowConnectorConfig;
+import io.cdap.plugin.servicenow.model.RestRequest;
 import io.cdap.plugin.servicenow.restapi.RestAPIClient;
 import io.cdap.plugin.servicenow.restapi.RestAPIRequest;
 import io.cdap.plugin.servicenow.restapi.RestAPIResponse;
 import io.cdap.plugin.servicenow.sink.service.ServiceNowSinkAPIRequestImpl;
 import io.cdap.plugin.servicenow.sink.transform.ServiceNowRecordWriter;
 import io.cdap.plugin.servicenow.source.ServiceNowBaseSourceConfig;
+import io.cdap.plugin.servicenow.util.ServiceNowConstants;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -45,6 +47,7 @@ import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -218,21 +221,21 @@ public class ServiceNowRecordWriterTest {
   }
 
   @Test
-  public void testWriteWithBatchFullThrowsIOExceptionOnServiceNowAPIException() throws Exception {
+  public void testWrite_whenBatchFullAndApiThrowsException_throwsIOException() throws Exception {
     ServiceNowTableAPIClientImpl restApi = Mockito.mock(ServiceNowTableAPIClientImpl.class);
     PowerMockito.whenNew(ServiceNowTableAPIClientImpl.class).withAnyArguments().thenReturn(restApi);
     ServiceNowAPIException apiException =
-      new ServiceNowAPIException("Error while connecting to ServiceNow", new java.io.IOException("Connection reset"),
-                                 null, false);
+      new ServiceNowAPIException("Error while connecting to ServiceNow. Connection reset",
+                                 new IOException("Connection reset"), null, false);
     Mockito.when(restApi.getAccessTokenRetryableMode()).thenThrow(apiException);
     ServiceNowRecordWriter writer = new ServiceNowRecordWriter(serviceNowSinkConfig);
-    java.io.IOException actualException = null;
+    IOException actualException = null;
 
     try {
-      for (int i = 0; i < io.cdap.plugin.servicenow.util.ServiceNowConstants.RECORDS_PER_BATCH; i++) {
+      for (int i = 0; i < ServiceNowConstants.RECORDS_PER_BATCH; i++) {
         writer.write(null, new JsonObject());
       }
-    } catch (java.io.IOException e) {
+    } catch (IOException e) {
       actualException = e;
     }
 
@@ -243,19 +246,19 @@ public class ServiceNowRecordWriterTest {
   }
 
   @Test
-  public void testCloseWithRemainingRecordsThrowsIOExceptionOnServiceNowAPIException() throws Exception {
+  public void testClose_whenRemainingRecordsAndApiThrowsException_throwsIOException() throws Exception {
     ServiceNowTableAPIClientImpl restApi = Mockito.mock(ServiceNowTableAPIClientImpl.class);
     PowerMockito.whenNew(ServiceNowTableAPIClientImpl.class).withAnyArguments().thenReturn(restApi);
     ServiceNowAPIException apiException =
-      new ServiceNowAPIException("An error occurred while authenticating.", null, null, false);
+      new ServiceNowAPIException("An error occurred while authenticating. Invalid credentials", null, null, false);
     Mockito.when(restApi.getAccessTokenRetryableMode()).thenThrow(apiException);
     ServiceNowRecordWriter writer = new ServiceNowRecordWriter(serviceNowSinkConfig);
     writer.write(null, new JsonObject());
-    java.io.IOException actualException = null;
+    IOException actualException = null;
 
     try {
       writer.close(Mockito.mock(TaskAttemptContext.class));
-    } catch (java.io.IOException e) {
+    } catch (IOException e) {
       actualException = e;
     }
 
@@ -266,17 +269,17 @@ public class ServiceNowRecordWriterTest {
   }
 
   @Test
-  public void testCreatePostRequestRetryableModeThrowsServiceNowAPIException() throws Exception {
+  public void testCreatePostRequestRetryableMode_whenNonRetryableException_throwsServiceNowAPIException()
+    throws Exception {
     ServiceNowTableAPIClientImpl restApi = Mockito.mock(ServiceNowTableAPIClientImpl.class);
     Mockito.when(restApi.getAccessTokenRetryableMode()).thenReturn("token");
-    java.io.IOException ioEx = new java.io.IOException("Connection refused");
-    Mockito.when(restApi.executePost(Mockito.any(RestAPIRequest.class))).thenThrow(ioEx);
     PowerMockito.whenNew(ServiceNowTableAPIClientImpl.class).withAnyArguments().thenReturn(restApi);
     ServiceNowSinkAPIRequestImpl sinkApi = Mockito.spy(new ServiceNowSinkAPIRequestImpl(serviceNowSinkConfig));
+    IOException ioEx = new IOException("Connection refused");
     ServiceNowAPIException nonRetryableEx =
-      new ServiceNowAPIException("Error while connecting to ServiceNow", ioEx, null, false);
+      new ServiceNowAPIException("Error while connecting to ServiceNow. Connection refused", ioEx, null, false);
     Mockito.doThrow(nonRetryableEx).when(sinkApi).createPostRequest(Mockito.anyMap(), Mockito.eq("token"));
-    Map<String, io.cdap.plugin.servicenow.model.RestRequest> requestMap = new HashMap<>();
+    Map<String, RestRequest> requestMap = new HashMap<>();
     ServiceNowAPIException actualException = null;
 
     try {
@@ -287,7 +290,8 @@ public class ServiceNowRecordWriterTest {
 
     Assert.assertNotNull(actualException);
     Assert.assertSame(nonRetryableEx, actualException);
-    Assert.assertEquals("Error while connecting to ServiceNow", actualException.getMessage());
+    Assert.assertEquals("Error while connecting to ServiceNow. Connection refused", actualException.getMessage());
     Assert.assertSame(ioEx, actualException.getCause());
+    Mockito.verify(sinkApi, Mockito.times(1)).createPostRequest(Mockito.anyMap(), Mockito.eq("token"));
   }
 }

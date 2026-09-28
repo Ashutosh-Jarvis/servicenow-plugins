@@ -1,5 +1,6 @@
 package io.cdap.plugin.servicenow.restapi;
 
+import io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException;
 import io.cdap.plugin.servicenow.apiclient.ServiceNowTableAPIClientImpl;
 import io.cdap.plugin.servicenow.apiclient.ServiceNowTableAPIRequestBuilder;
 import io.cdap.plugin.servicenow.connector.ServiceNowConnectorConfig;
@@ -158,11 +159,11 @@ public class RestAPIClientTest {
     ServiceNowTableAPIClientImpl clientSpy = Mockito.spy(new ServiceNowTableAPIClientImpl(config, true));
     IOException rootCause = new IOException("Unexpected transport failure");
     Mockito.doThrow(rootCause).when(clientSpy).executeGet(request);
-    io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException actualException = null;
+    ServiceNowAPIException actualException = null;
 
     try {
       clientSpy.executeGetWithRetries(request);
-    } catch (io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException e) {
+    } catch (ServiceNowAPIException e) {
       actualException = e;
     }
 

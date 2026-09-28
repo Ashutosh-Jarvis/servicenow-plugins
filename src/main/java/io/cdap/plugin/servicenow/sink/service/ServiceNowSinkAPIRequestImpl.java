@@ -222,7 +222,9 @@ public class ServiceNowSinkAPIRequestImpl {
       if (e.getCause() instanceof ServiceNowAPIException) {
         throw (ServiceNowAPIException) e.getCause();
       }
-      throw new ServiceNowAPIException("Error while connecting to ServiceNow", e.getCause(), null, false);
+      throw new ServiceNowAPIException(
+        String.format("Error while connecting to ServiceNow. %s", e.getCause().getMessage()),
+        e.getCause(), null, false);
     }
   }
 
