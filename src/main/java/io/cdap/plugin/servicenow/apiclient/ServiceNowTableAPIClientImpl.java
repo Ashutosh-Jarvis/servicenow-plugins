@@ -113,7 +113,6 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
         conf.getClientSecret(), conf.getUser(), conf.getPassword());
 
     Retryer<String> retryer = RetryerBuilder.<String>newBuilder()
-      .retryIfException(this::isExceptionRetryable)
       .retryIfExceptionOfType(OAuthSystemException.class)
       .withWaitStrategy(WaitStrategies.fixedWait(ServiceNowConstants.BASE_DELAY, TimeUnit.MILLISECONDS))
       .withStopStrategy(StopStrategies.stopAfterAttempt(ServiceNowConstants.MAX_NUMBER_OF_RETRY_ATTEMPTS))
@@ -234,9 +233,6 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
     try {
       retryer.call(fetchRecords);
     } catch (RetryException | ExecutionException e) {
-      if (e.getCause() instanceof ServiceNowAPIException) {
-        throw (ServiceNowAPIException) e.getCause();
-      }
       throw new ServiceNowAPIException(
           String.format("Data Recovery failed for batch %s to %s. %s", offset, (offset + limit),
                         e.getCause().getMessage()),

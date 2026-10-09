@@ -289,9 +289,9 @@ public class ServiceNowRecordWriterTest {
     }
 
     Assert.assertNotNull(actualException);
-    Assert.assertSame(nonRetryableEx, actualException);
     Assert.assertEquals("Error while connecting to ServiceNow. Connection refused", actualException.getMessage());
-    Assert.assertSame(ioEx, actualException.getCause());
+    Assert.assertSame(nonRetryableEx, actualException.getCause());
+    Assert.assertFalse(actualException.isErrorRetryable());
     Mockito.verify(sinkApi, Mockito.times(1)).createPostRequest(Mockito.anyMap(), Mockito.eq("token"));
   }
 }

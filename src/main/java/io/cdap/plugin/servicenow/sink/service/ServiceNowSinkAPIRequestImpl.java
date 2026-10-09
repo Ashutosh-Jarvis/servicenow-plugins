@@ -164,7 +164,8 @@ public class ServiceNowSinkAPIRequestImpl {
       }
     } catch (IOException e) {
       LOG.error("Error while connecting to ServiceNow", e.getMessage());
-      throw new ServiceNowAPIException("Error while connecting to ServiceNow", e, null, true);
+      throw new ServiceNowAPIException(
+        String.format("Error while connecting to ServiceNow. %s", e.getMessage()), e, null, true);
     }
   }
 
@@ -219,12 +220,9 @@ public class ServiceNowSinkAPIRequestImpl {
     try {
       retryer.call(fetchRecords);
     } catch (RetryException | ExecutionException e) {
-      if (e.getCause() instanceof ServiceNowAPIException) {
-        throw (ServiceNowAPIException) e.getCause();
-      }
-      throw new ServiceNowAPIException(
-        String.format("Error while connecting to ServiceNow. %s", e.getCause().getMessage()),
-        e.getCause(), null, false);
+      String errorMessage = e.getCause() != null && e.getCause().getMessage() != null ?
+        e.getCause().getMessage() : "Error while connecting to ServiceNow";
+      throw new ServiceNowAPIException(errorMessage, e.getCause(), null, false);
     }
   }
 

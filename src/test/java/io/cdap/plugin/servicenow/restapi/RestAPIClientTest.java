@@ -170,6 +170,7 @@ public class RestAPIClientTest {
     Assert.assertNotNull(actualException);
     Assert.assertSame("Expected unwrapped IOException cause instead of ExecutionException",
                       rootCause, actualException.getCause());
+    Assert.assertEquals("Unexpected transport failure", actualException.getMessage());
     Assert.assertEquals("Unexpected transport failure", actualException.getUnderlyingMessage());
   }
 }

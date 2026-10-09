@@ -77,7 +77,7 @@ public class ServiceNowTableAPIClientImplTest {
             Mockito.anyInt(),
             Mockito.anyInt());
     exceptionRule.expect(ServiceNowAPIException.class);
-    exceptionRule.expectMessage("Non-retryable Error");
+    exceptionRule.expectMessage("Data Recovery failed for batch 0 to 0. Non-retryable Error");
     implSpy.fetchTableRecordsRetryableMode(
         "test", SourceValueType.SHOW_DISPLAY_VALUE, "", 0, 0);
   }
