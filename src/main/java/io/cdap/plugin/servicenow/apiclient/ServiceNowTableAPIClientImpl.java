@@ -121,9 +121,11 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
     try {
       return retryer.call(fetchToken);
     } catch (RetryException | ExecutionException e) {
-      throw new ServiceNowAPIException(
-        String.format("An error occurred while authenticating. %s", e.getCause().getMessage()),
-        e.getCause(), null, false);
+      Throwable cause = e.getCause();
+      String errorMessage = (cause != null && !Strings.isNullOrEmpty(cause.getMessage()))
+        ? String.format("An error occurred while authenticating. %s", cause.getMessage())
+        : "An error occurred while authenticating.";
+      throw new ServiceNowAPIException(errorMessage, cause, null, false);
     }
   }
 
@@ -233,10 +235,16 @@ public class ServiceNowTableAPIClientImpl extends RestAPIClient {
     try {
       retryer.call(fetchRecords);
     } catch (RetryException | ExecutionException e) {
-      throw new ServiceNowAPIException(
-          String.format("Data Recovery failed for batch %s to %s. %s", offset, (offset + limit),
-                        e.getCause().getMessage()),
-          e.getCause(), null, false);
+      Throwable cause = e.getCause();
+      String batchMessage = String.format("Data Recovery failed for batch %s to %s.", offset, (offset + limit));
+      String errorMessage = (cause != null && !Strings.isNullOrEmpty(cause.getMessage()))
+        ? String.format("%s %s", batchMessage, cause.getMessage())
+        : batchMessage;
+      if (cause instanceof ServiceNowAPIException) {
+        ServiceNowAPIException apiException = (ServiceNowAPIException) cause;
+        throw new ServiceNowAPIException(errorMessage, apiException.getCause(), apiException.getHttpResponse(), false);
+      }
+      throw new ServiceNowAPIException(errorMessage, cause, null, false);
     }
 
     return results;

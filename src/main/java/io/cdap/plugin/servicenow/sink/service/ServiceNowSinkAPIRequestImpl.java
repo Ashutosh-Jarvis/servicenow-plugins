@@ -120,6 +120,9 @@ public class ServiceNowSinkAPIRequestImpl {
       StringEntity stringEntity = new StringEntity(gson.toJson(payloadRequest), ContentType.APPLICATION_JSON);
       requestBuilder.setEntity(stringEntity);
       apiResponse = restApi.executePost(requestBuilder.build());
+      if (apiResponse.hasException()) {
+        throw apiResponse.getException();
+      }
 
       JsonObject responseJSON = jsonParser.parse(apiResponse.getResponseBody()).getAsJsonObject();
       JsonArray servicedRequestsArray = responseJSON.get(ServiceNowConstants.SERVICED_REQUESTS).getAsJsonArray();
@@ -220,9 +223,14 @@ public class ServiceNowSinkAPIRequestImpl {
     try {
       retryer.call(fetchRecords);
     } catch (RetryException | ExecutionException e) {
-      String errorMessage = e.getCause() != null && e.getCause().getMessage() != null ?
-        e.getCause().getMessage() : "Error while connecting to ServiceNow";
-      throw new ServiceNowAPIException(errorMessage, e.getCause(), null, false);
+      Throwable cause = e.getCause();
+      String errorMessage = cause != null && cause.getMessage() != null ?
+        cause.getMessage() : "Error while connecting to ServiceNow";
+      if (cause instanceof ServiceNowAPIException) {
+        ServiceNowAPIException apiException = (ServiceNowAPIException) cause;
+        throw new ServiceNowAPIException(errorMessage, apiException.getCause(), apiException.getHttpResponse(), false);
+      }
+      throw new ServiceNowAPIException(errorMessage, cause, null, false);
     }
   }
 
