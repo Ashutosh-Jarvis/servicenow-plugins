@@ -163,6 +163,7 @@ public class RestAPIClientTest {
 
     try {
       clientSpy.executeGetWithRetries(request);
+      Assert.fail("Expected ServiceNowAPIException");
     } catch (ServiceNowAPIException e) {
       actualException = e;
     }

@@ -22,7 +22,6 @@ import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.plugin.servicenow.apiclient.ServiceNowAPIException;
 import io.cdap.plugin.servicenow.util.ServiceNowConstants;
@@ -215,9 +214,8 @@ public abstract class RestAPIClient {
    * @throws OAuthSystemException
    * @throws OAuthProblemException
    */
-  @VisibleForTesting
-  public String generateAccessToken(String restApiEndpoint, String clientId, String clientSecret, String user,
-                                    String password) throws OAuthSystemException, OAuthProblemException {
+  protected String generateAccessToken(String restApiEndpoint, String clientId, String clientSecret, String user,
+                                       String password) throws OAuthSystemException, OAuthProblemException {
     String token = "NO-VALUE";
 
     // When a proxy is configured, route the OAuth token request through the same proxy-aware HTTP client as the rest

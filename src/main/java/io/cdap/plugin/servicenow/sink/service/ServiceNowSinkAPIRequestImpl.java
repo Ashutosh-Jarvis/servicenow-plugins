@@ -20,6 +20,7 @@ import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -167,8 +168,10 @@ public class ServiceNowSinkAPIRequestImpl {
       }
     } catch (IOException e) {
       LOG.error("Error while connecting to ServiceNow", e.getMessage());
-      throw new ServiceNowAPIException(
-        String.format("Error while connecting to ServiceNow. %s", e.getMessage()), e, null, true);
+      String errorMessage = !Strings.isNullOrEmpty(e.getMessage())
+        ? String.format("Error while connecting to ServiceNow. %s", e.getMessage())
+        : "Error while connecting to ServiceNow";
+      throw new ServiceNowAPIException(errorMessage, e, null, true);
     }
   }
 
@@ -224,8 +227,9 @@ public class ServiceNowSinkAPIRequestImpl {
       retryer.call(fetchRecords);
     } catch (RetryException | ExecutionException e) {
       Throwable cause = e.getCause();
-      String errorMessage = cause != null && cause.getMessage() != null ?
-        cause.getMessage() : "Error while connecting to ServiceNow";
+      String errorMessage = (cause != null && !Strings.isNullOrEmpty(cause.getMessage()))
+        ? cause.getMessage()
+        : "Error while connecting to ServiceNow";
       if (cause instanceof ServiceNowAPIException) {
         ServiceNowAPIException apiException = (ServiceNowAPIException) cause;
         throw new ServiceNowAPIException(errorMessage, apiException.getCause(), apiException.getHttpResponse(), false);
